@@ -7,10 +7,28 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    <nav class="navbar">
+        <a href="/" class="nav-brand">&#9822; Chess Coach</a>
+        <div class="nav-links">
+            <a href="/">Analyze</a>
+            <a href="/history">History</a>
+            <a href="/patterns">Patterns</a>
+            <a href="/dashboard">Dashboard</a>
+        </div>
+    </nav>
+
     <div class="container">
+        {% if stats and stats.total_games %}
+        <div class="stats-bar">
+            <span>{{ stats.total_games }} games analyzed</span>
+            <span>{{ stats.total_blunders|int }} blunders total</span>
+            <span>{{ stats.total_mistakes|int }} mistakes total</span>
+        </div>
+        {% endif %}
+
         <header>
             <h1>&#9822; Chess Coach</h1>
-            <p class="subtitle">Personalized Improvement for {rating} players</p>
+            <p class="subtitle">Personalized feedback for players closing the gap</p>
         </header>
 
         {% if error %}
@@ -20,14 +38,13 @@
         {% endif %}
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab('paste')">Paste PGN</button>
-            <button class="tab" onclick="showTab('lichess')">Import from Lichess</button>
-            <button class="tab" onclick="showTab('chesscom')">Import from Chess.com</button>
+            <button class="tab active" onclick="showTab('paste', this)">Paste PGN</button>
+            <button class="tab" onclick="showTab('lichess', this)">Import from Lichess</button>
+            <button class="tab" onclick="showTab('chesscom', this)">Import from Chess.com</button>
         </div>
 
-        <!-- Paste PGN Tab -->
         <div id="tab-paste" class="tab-content active">
-            <form action="/analyze-pgn" method="post">
+            <form action="/analyze-pgn" method="post" onsubmit="submitAnalysis(event)">
                 <div class="form-group">
                     <label for="pgn">Paste your game in PGN format:</label>
                     <textarea id="pgn" name="pgn" rows="12" placeholder="[Event "Casual Game"]
@@ -58,69 +75,63 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn-primary">Analyze Game</button>
+                <button type="submit" class="btn-primary" id="analyzeBtn">Analyze Game</button>
             </form>
         </div>
 
-        <!-- Lichess Tab -->
         <div id="tab-lichess" class="tab-content">
             <form action="/import-and-analyze" method="post">
                 <input type="hidden" name="platform" value="lichess">
                 <div class="form-group">
-                    <label for="lichess-username">Lichess Username:</label>
-                    <input type="text" id="lichess-username" name="username" placeholder="e.g. DrNykterstein">
+                    <label>Lichess Username:</label>
+                    <input type="text" name="username" placeholder="e.g. DrNykterstein">
                 </div>
-
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="lichess-rating">Your Rating:</label>
-                        <input type="number" id="lichess-rating" name="player_rating" value="1200" min="100" max="3000">
+                        <label>Your Rating:</label>
+                        <input type="number" name="player_rating" value="1200" min="100" max="3000">
                     </div>
                     <div class="form-group">
-                        <label for="lichess-target">Target Rating:</label>
-                        <input type="number" id="lichess-target" name="target_rating" value="1400" min="100" max="3000">
+                        <label>Target Rating:</label>
+                        <input type="number" name="target_rating" value="1400" min="100" max="3000">
                     </div>
                     <div class="form-group">
-                        <label for="lichess-color">You played as:</label>
-                        <select id="lichess-color" name="player_color">
+                        <label>You played as:</label>
+                        <select name="player_color">
                             <option value="w">White</option>
                             <option value="b">Black</option>
                         </select>
                     </div>
                 </div>
-
-                <button type="submit" class="btn-primary">Import & Analyze Latest Game</button>
+                <button type="submit" class="btn-primary">Import & Analyze</button>
             </form>
         </div>
 
-        <!-- Chess.com Tab -->
         <div id="tab-chesscom" class="tab-content">
             <form action="/import-and-analyze" method="post">
                 <input type="hidden" name="platform" value="chesscom">
                 <div class="form-group">
-                    <label for="chesscom-username">Chess.com Username:</label>
-                    <input type="text" id="chesscom-username" name="username" placeholder="e.g. DrNykterstein">
+                    <label>Chess.com Username:</label>
+                    <input type="text" name="username" placeholder="e.g. DrNykterstein">
                 </div>
-
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="chesscom-rating">Your Rating:</label>
-                        <input type="number" id="chesscom-rating" name="player_rating" value="1200" min="100" max="3000">
+                        <label>Your Rating:</label>
+                        <input type="number" name="player_rating" value="1200" min="100" max="3000">
                     </div>
                     <div class="form-group">
-                        <label for="chesscom-target">Target Rating:</label>
-                        <input type="number" id="chesscom-target" name="target_rating" value="1400" min="100" max="3000">
+                        <label>Target Rating:</label>
+                        <input type="number" name="target_rating" value="1400" min="100" max="3000">
                     </div>
                     <div class="form-group">
-                        <label for="chesscom-color">You played as:</label>
-                        <select id="chesscom-color" name="player_color">
+                        <label>You played as:</label>
+                        <select name="player_color">
                             <option value="w">White</option>
                             <option value="b">Black</option>
                         </select>
                     </div>
                 </div>
-
-                <button type="submit" class="btn-primary">Import & Analyze Latest Game</button>
+                <button type="submit" class="btn-primary">Import & Analyze</button>
             </form>
         </div>
 
@@ -129,10 +140,18 @@
             <ul>
                 <li>Paste a PGN or import from Lichess/Chess.com</li>
                 <li>Stockfish analyzes every move for errors</li>
-                <li>Mistakes are classified: Blunder / Mistake / Inaccuracy</li>
-                <li>Each error gets a plain-language explanation written for your rating level</li>
-                <li>Get a summary of what to practice next</li>
+                <li>Mistakes classified: Blunder / Mistake / Inaccuracy</li>
+                <li>Each error explained in plain language for your rating</li>
+                <li>Patterns tracked across games for recurring weaknesses</li>
             </ul>
+        </div>
+    </div>
+
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p>Analyzing your game with Stockfish...</p>
+            <p class="loading-sub">This can take up to 60 seconds. Don't close this tab.</p>
         </div>
     </div>
 

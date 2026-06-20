@@ -1,87 +1,68 @@
-import openai
+import subprocess
+import logging
 from app.config import settings
 from app.models import FlaggedMove, Severity, MistakeType, GameAnalysis
-import json
+
+logger = logging.getLogger(__name__)
 
 
 def _build_explanation_prompt(
     move: FlaggedMove, game: GameAnalysis, player_rating: int, target_rating: int
 ) -> str:
-    """Build a prompt for explaining a chess mistake to a beginner."""
+    return f"""[Position]
+FEN: {move.fen}
+Game: {game.white} vs {game.black}
+Move: {move.san} (move {move.move_number})
+Better move: {move.best_move_san}
+Severity: {move.severity.value} ({move.mistake_type.value})
+Player rating: {player_rating}
 
-    severity_desc = {
-        Severity.BLUNDER: "a blunder (a very bad move that loses significant material or the game)",
-        Severity.MISTAKE: "a mistake (a move that significantly worsens your position)",
-        Severity.INACCURACY: "an inaccuracy (a move that slightly worsens your position)",
-    }
+You are a chess coach. Look at the FEN position above. Analyze {move.san} in THIS specific position only:
+- What concrete problem does {move.san} create?
+- Why is {move.best_move_san} better in this position?
+- One specific thing to practice.
 
-    type_desc = {
-        MistakeType.TACTICAL: "tactical oversight (missed a fork, pin, skewer, or hanging piece)",
-        MistakeType.POSITIONAL: "positional weakness (poor piece placement or pawn structure)",
-        MistakeType.ENDGAME: "endgame technique error",
-        MistakeType.OPENING: "opening deviation from good principles",
-        MistakeType.UNKNOWN: "general error",
-    }
+No eval numbers like "+2.3". Speak directly to the player."""
 
-    rating_context = f"""
-You are coaching a chess player rated {player_rating} who wants to reach {target_rating}.
-Your explanations must be:
-- Written in simple language a {player_rating}-rated player can understand
-- Focus on practical lessons, not engine variations
-- Explain the CONCEPT behind why the move was bad, not just the engine line
-- Suggest what to study/practice to avoid this type of mistake
-- Keep it to 2-3 sentences max per explanation
-- Never use raw eval numbers like "+2.3" — translate to chess concepts
-"""
 
-    prompt = f"""{rating_context}
-
-Game: {game.white} vs {game.black}, Result: {game.result}
-
-Move: {move.san} (move {move.move_number}, {"White" if move.color == "w" else "Black"})
-This was {severity_desc[move.severity]}, specifically a {type_desc[move.mistake_type]}.
-
-The eval went from roughly {"winning" if move.eval_before > 100 else "equal" if abs(move.eval_before) < 100 else "losing"} for {"White" if move.color == "w" else "Black"} to {"winning" if move.eval_after > 100 else "equal" if abs(move.eval_after) < 100 else "losing"}.
-Best move was: {move.best_move_san}
-
-Explain this mistake to the player in 2-3 simple sentences. What went wrong, what should they have done instead, and what to practice?"""
-
-    return prompt
+def _call_ollama(prompt: str, system: str) -> str:
+    full_input = f"{system}\n\n{prompt}"
+    result = subprocess.run(
+        ["ollama", "run", settings.ollama_model],
+        input=full_input.encode("utf-8"),
+        capture_output=True,
+        timeout=120,
+    )
+    return result.stdout.decode("utf-8", errors="replace").strip()
 
 
 async def explain_move_with_llm(
     move: FlaggedMove, game: GameAnalysis, player_rating: int, target_rating: int
 ) -> str:
-    """Use OpenAI to generate a beginner-friendly explanation."""
-    if not settings.openai_api_key:
+    """Use local Ollama only for blunders. Templates for everything else."""
+    if move.severity != Severity.BLUNDER:
         return _fallback_explanation(move, game, player_rating)
 
     try:
-        client = openai.OpenAI(api_key=settings.openai_api_key)
         prompt = _build_explanation_prompt(move, game, player_rating, target_rating)
-
-        response = client.chat.completions.create(
-            model=settings.llm_model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a friendly chess coach who explains things simply.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=200,
-            temperature=0.7,
+        result = _call_ollama(
+            prompt, "You are a friendly chess coach who explains things simply."
         )
-
-        return response.choices[0].message.content.strip()
-    except Exception as e:
+        logger.info(
+            "Ollama used for blunder on move %d (%s)", move.move_number, move.san
+        )
+        return result
+    except Exception:
+        logger.warning(
+            "Ollama unavailable for move %d — falling back to template",
+            move.move_number,
+        )
         return _fallback_explanation(move, game, player_rating)
 
 
 def _fallback_explanation(
     move: FlaggedMove, game: GameAnalysis, player_rating: int
 ) -> str:
-    """Template-based explanation when no LLM is available."""
     type_explanations = {
         MistakeType.TACTICAL: {
             Severity.BLUNDER: "This was a tactical blunder — you likely left a piece hanging or missed a forcing sequence. At your level, always check: 'Is this square defended? Can my opponent capture it for free?'",
@@ -119,50 +100,50 @@ def _fallback_explanation(
 async def generate_game_summary(
     analysis: GameAnalysis, player_rating: int, target_rating: int
 ) -> str:
-    """Generate a per-game summary."""
-    if settings.openai_api_key:
-        return await _llm_summary(analysis, player_rating, target_rating)
-    return _fallback_summary(analysis, player_rating)
+    """Try local Ollama for summary. Falls back to template if Ollama is down."""
+    try:
+        result = await _llm_summary(analysis, player_rating, target_rating)
+        logger.info("Game summary generated via Ollama")
+        return result
+    except Exception:
+        logger.warning("Ollama unavailable for summary — using template")
+        return _fallback_summary(analysis, player_rating)
 
 
 async def _llm_summary(
     analysis: GameAnalysis, player_rating: int, target_rating: int
 ) -> str:
-    try:
-        client = openai.OpenAI(api_key=settings.openai_api_key)
+    player = analysis.white if analysis.player_color == "w" else analysis.black
+    opponent = analysis.black if analysis.player_color == "w" else analysis.white
 
-        player = analysis.white if analysis.player_color == "w" else analysis.black
-        opp_color = "b" if analysis.player_color == "w" else "w"
-        opponent = analysis.black if analysis.player_color == "w" else analysis.white
+    player_blunders = (
+        analysis.white_blunders
+        if analysis.player_color == "w"
+        else analysis.black_blunders
+    )
+    player_mistakes = (
+        analysis.white_mistakes
+        if analysis.player_color == "w"
+        else analysis.black_mistakes
+    )
+    player_inacc = (
+        analysis.white_inaccuracies
+        if analysis.player_color == "w"
+        else analysis.black_inaccuracies
+    )
 
-        player_blunders = (
-            analysis.white_blunders
-            if analysis.player_color == "w"
-            else analysis.black_blunders
-        )
-        player_mistakes = (
-            analysis.white_mistakes
-            if analysis.player_color == "w"
-            else analysis.black_mistakes
-        )
-        player_inacc = (
-            analysis.white_inaccuracies
-            if analysis.player_color == "w"
-            else analysis.black_inaccuracies
-        )
+    mistake_types = {}
+    for fm in analysis.flagged_moves:
+        if fm.color == analysis.player_color:
+            mistake_types[fm.mistake_type.value] = (
+                mistake_types.get(fm.mistake_type.value, 0) + 1
+            )
 
-        mistake_types = {}
-        for fm in analysis.flagged_moves:
-            if fm.color == analysis.player_color:
-                mistake_types[fm.mistake_type.value] = (
-                    mistake_types.get(fm.mistake_type.value, 0) + 1
-                )
+    type_breakdown = ", ".join(
+        f"{v} {k}" for k, v in sorted(mistake_types.items(), key=lambda x: -x[1])
+    )
 
-        type_breakdown = ", ".join(
-            f"{v} {k}" for k, v in sorted(mistake_types.items(), key=lambda x: -x[1])
-        )
-
-        prompt = f"""You are a chess coach. Summarize this game for a {player_rating}-rated player aiming for {target_rating}.
+    prompt = f"""You are a chess coach. Summarize this game for a {player_rating}-rated player aiming for {target_rating}.
 
 Player: {player} vs {opponent}. Result: {analysis.result}
 Player made: {player_blunders} blunders, {player_mistakes} mistakes, {player_inacc} inaccuracies
@@ -175,22 +156,10 @@ Write a 3-5 sentence summary:
 
 Keep it encouraging and specific. No raw eval numbers."""
 
-        response = client.chat.completions.create(
-            model=settings.llm_model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a supportive chess coach for beginner-intermediate players.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=300,
-            temperature=0.7,
-        )
-
-        return response.choices[0].message.content.strip()
-    except Exception:
-        return _fallback_summary(analysis, player_rating)
+    return _call_ollama(
+        prompt,
+        "You are a supportive chess coach for beginner-intermediate players.",
+    )
 
 
 def _fallback_summary(analysis: GameAnalysis, player_rating: int) -> str:

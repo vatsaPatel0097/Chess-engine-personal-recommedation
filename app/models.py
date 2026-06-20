@@ -21,6 +21,7 @@ class FlaggedMove(BaseModel):
     color: str  # "w" or "b"
     san: str  # move in standard algebraic notation
     uci: str  # move in UCI notation
+    fen: str = ""  # FEN position BEFORE the move
     eval_before: float  # centipawns
     eval_after: float  # centipawns
     centipawn_loss: int

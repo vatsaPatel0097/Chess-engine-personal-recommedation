@@ -7,18 +7,25 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>&#9822; Chess Coach</h1>
-            <p class="subtitle">{{ analysis.white }} vs {{ analysis.black }} &mdash; {{ analysis.result }}</p>
-        </header>
+    <nav class="navbar">
+        <a href="/" class="nav-brand">&#9822; Chess Coach</a>
+        <div class="nav-links">
+            <a href="/">Analyze</a>
+            <a href="/history">History</a>
+            <a href="/patterns">Patterns</a>
+            <a href="/dashboard">Dashboard</a>
+        </div>
+    </nav>
 
+    <div class="container">
         <div class="result-header">
             <a href="/" class="btn-secondary">&larr; Analyze Another Game</a>
-            <span class="date">{{ analysis.date }} | {{ analysis.event }}</span>
+            <div class="result-meta">
+                <strong>{{ analysis.white }} vs {{ analysis.black }}</strong> &mdash; {{ analysis.result }}
+                <span class="date">{{ analysis.date }} | {{ analysis.event }}</span>
+            </div>
         </div>
 
-        <!-- Stats Cards -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-number">{{ analysis.total_moves }}</div>
@@ -38,26 +45,23 @@
             </div>
         </div>
 
-        <!-- Summary -->
         <div class="summary-box">
             <h2>Game Summary</h2>
             <p>{{ analysis.summary }}</p>
         </div>
 
-        <!-- Eval Chart -->
         <div class="eval-chart-container">
-            <h2>Evaluation Over Time</h2>
+            <h2>Evaluation Over Time (White's perspective)</h2>
             <canvas id="evalChart" height="100"></canvas>
         </div>
 
-        <!-- Flagged Moves -->
         <div class="flagged-moves">
-            <h2>Mistakes &amp; Analysis ({{ analysis.flagged_moves | length }} flagged moves)</h2>
+            <h2>Mistakes &amp; Analysis ({{ analysis.flagged_moves | length }} flagged)</h2>
 
             {% if not analysis.flagged_moves %}
             <div class="no-errors">
-                <h3>&#127881; Clean Game!</h3>
-                <p>No significant mistakes were found. Great job! Keep focusing on consistent play.</p>
+                <h3>Clean Game!</h3>
+                <p>No significant mistakes found. Keep it up!</p>
             </div>
             {% endif %}
 
@@ -75,7 +79,7 @@
                         <span class="eval-indicator">({% if move.eval_before > 0 %}+{% endif %}{{ (move.eval_before / 100) | round(1) }} &rarr; {% if move.eval_after > 0 %}+{% endif %}{{ (move.eval_after / 100) | round(1) }})</span>
                     </div>
                     <div class="move-best">
-                        <strong>Best move:</strong> <code>{{ move.best_move_san }}</code>
+                        <strong>Better move:</strong> <code>{{ move.best_move_san or 'N/A' }}</code>
                     </div>
                 </div>
                 <div class="move-explanation">
@@ -86,7 +90,6 @@
             {% endfor %}
         </div>
 
-        <!-- Move-by-Move Table -->
         <details class="move-table-section">
             <summary>Full Move List (click to expand)</summary>
             <table class="move-table">
@@ -95,6 +98,7 @@
                         <th>#</th>
                         <th>White</th>
                         <th>Eval</th>
+                        <th>Loss</th>
                         <th>Black</th>
                         <th>Eval</th>
                         <th>Loss</th>
@@ -104,11 +108,12 @@
                     {% for i in range(0, all_moves|length, 2) %}
                     <tr>
                         <td class="move-num-cell">{{ all_moves[i].move_number }}</td>
-                        <td class="{{ 'flagged' if all_moves[i].centipawn_loss >= 50 else '' }} {{ 'blunder-cell' if all_moves[i].centipawn_loss >= 300 else 'mistake-cell' if all_moves[i].centipawn_loss >= 100 else 'inaccuracy-cell' if all_moves[i].centipawn_loss >= 50 else '' }}">{{ all_moves[i].san }}</td>
-                        <td>{% if all_moves[i].eval_before > 0 %}+{% endif %}{{ (all_moves[i].eval_before / 100) | round(1) }}</td>
-                        <td class="{{ 'flagged' if (i+1 < all_moves|length and all_moves[i+1].centipawn_loss >= 50) else '' }} {{ 'blunder-cell' if (i+1 < all_moves|length and all_moves[i+1].centipawn_loss >= 300) else 'mistake-cell' if (i+1 < all_moves|length and all_moves[i+1].centipawn_loss >= 100) else 'inaccuracy-cell' if (i+1 < all_moves|length and all_moves[i+1].centipawn_loss >= 50) else '' }}">{% if i+1 < all_moves|length %}{{ all_moves[i+1].san }}{% endif %}</td>
+                        <td class="{{ 'blunder-cell' if all_moves[i].centipawn_loss >= 300 else 'mistake-cell' if all_moves[i].centipawn_loss >= 100 else 'inaccuracy-cell' if all_moves[i].centipawn_loss >= 50 else '' }}">{{ all_moves[i].san }}</td>
+                        <td>{% if all_moves[i].eval_after > 0 %}+{% endif %}{{ (all_moves[i].eval_after / 100) | round(1) }}</td>
+                        <td class="{% if all_moves[i].centipawn_loss >= 300 %}blunder-cell{% elif all_moves[i].centipawn_loss >= 100 %}mistake-cell{% elif all_moves[i].centipawn_loss >= 50 %}inaccuracy-cell{% endif %}">{% if all_moves[i].centipawn_loss > 0 %}{{ all_moves[i].centipawn_loss }}{% endif %}</td>
+                        <td class="{{ 'blunder-cell' if (i+1 < all_moves|length and all_moves[i+1].centipawn_loss >= 300) else 'mistake-cell' if (i+1 < all_moves|length and all_moves[i+1].centipawn_loss >= 100) else 'inaccuracy-cell' if (i+1 < all_moves|length and all_moves[i+1].centipawn_loss >= 50) else '' }}">{% if i+1 < all_moves|length %}{{ all_moves[i+1].san }}{% endif %}</td>
                         <td>{% if i+1 < all_moves|length %}{% if all_moves[i+1].eval_after > 0 %}+{% endif %}{{ (all_moves[i+1].eval_after / 100) | round(1) }}{% endif %}</td>
-                        <td>{% if i+1 < all_moves|length and all_moves[i+1].centipawn_loss > 0 %}-{{ all_moves[i+1].centipawn_loss }}{% endif %}</td>
+                        <td class="{% if i+1 < all_moves|length %}{% if all_moves[i+1].centipawn_loss >= 300 %}blunder-cell{% elif all_moves[i+1].centipawn_loss >= 100 %}mistake-cell{% elif all_moves[i+1].centipawn_loss >= 50 %}inaccuracy-cell{% endif %}{% endif %}">{% if i+1 < all_moves|length and all_moves[i+1].centipawn_loss > 0 %}{{ all_moves[i+1].centipawn_loss }}{% endif %}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -118,23 +123,17 @@
 
     <script>
         const moves = {{ all_moves | tojson }};
-        const flaggedIndices = new Set();
-        {% for move in analysis.flagged_moves %}
-        flaggedIndices.add(moves.findIndex(m => m.uci === "{{ move.uci }}" && m.color === "{{ move.color }}"));
-        {% endfor %}
-
         const canvas = document.getElementById('evalChart');
         const ctx = canvas.getContext('2d');
         const W = canvas.width = canvas.parentElement.clientWidth - 40;
         const H = canvas.height = 120;
         const padding = 40;
 
-        const evals = moves.map(m => m.eval_after / 100);
+        const evals = moves.map(m => m.eval_before / 100);
         const maxEval = Math.max(...evals.map(Math.abs), 5);
         const scaleX = (W - 2 * padding) / Math.max(evals.length - 1, 1);
         const scaleY = (H - 2 * padding) / (2 * maxEval);
 
-        // Draw center line
         ctx.strokeStyle = '#555';
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
@@ -144,7 +143,6 @@
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Draw eval line
         ctx.beginPath();
         ctx.strokeStyle = '#4a9eff';
         ctx.lineWidth = 2;
@@ -156,19 +154,22 @@
         }
         ctx.stroke();
 
-        // Mark flagged moves
-        flaggedIndices.forEach(i => {
-            if (i >= 0 && i < evals.length) {
+        const flaggedSet = new Set();
+        {% for move in analysis.flagged_moves %}
+        flaggedSet.add("{{ move.uci }}_{{ move.color }}");
+        {% endfor %}
+
+        for (let i = 0; i < moves.length; i++) {
+            if (flaggedSet.has(moves[i].uci + '_' + moves[i].color)) {
                 const x = padding + i * scaleX;
                 const y = H / 2 - evals[i] * scaleY;
                 ctx.beginPath();
                 ctx.arc(x, y, 5, 0, Math.PI * 2);
-                ctx.fillStyle = '#ff4444';
+                ctx.fillStyle = moves[i].centipawn_loss >= 300 ? '#ff4444' : moves[i].centipawn_loss >= 100 ? '#ff9944' : '#ffcc44';
                 ctx.fill();
             }
-        });
+        }
 
-        // Labels
         ctx.fillStyle = '#999';
         ctx.font = '11px monospace';
         ctx.fillText('+' + maxEval.toFixed(1), 2, padding);

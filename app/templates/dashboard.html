@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Coach - Progress Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="nav-brand">&#9822; Chess Coach</a>
+        <div class="nav-links">
+            <a href="/">Analyze</a>
+            <a href="/history">History</a>
+            <a href="/patterns">Patterns</a>
+            <a href="/dashboard" class="active">Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header>
+            <h1>Progress Dashboard</h1>
+            <p class="subtitle">Track your improvement over time</p>
+        </header>
+
+        {% if not data.has_data %}
+        <div class="no-errors">
+            <h3>No data yet</h3>
+            <p>Analyze some games and your progress will appear here.</p>
+        </div>
+        {% else %}
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{{ data.total_games }}</div>
+                <div class="stat-label">Games Analyzed</div>
+            </div>
+            <div class="stat-card blunder">
+                <div class="stat-number">{{ data.trend[-1].blunders if data.trend else 0 }}</div>
+                <div class="stat-label">Last Game Blunders</div>
+            </div>
+            <div class="stat-card mistake">
+                <div class="stat-number">{{ data.trend[-1].mistakes if data.trend else 0 }}</div>
+                <div class="stat-label">Last Game Mistakes</div>
+            </div>
+            <div class="stat-card inaccuracy">
+                <div class="stat-number">{{ data.trend[-1].total_issues if data.trend else 0 }}</div>
+                <div class="stat-label">Last Game Total Issues</div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>Mistake Trend Over Time</h2>
+            <canvas id="trendChart" height="150"></canvas>
+        </div>
+
+        <div class="chart-section">
+            <h2>Total Issues Per Game</h2>
+            <canvas id="issuesChart" height="150"></canvas>
+        </div>
+
+        <div class="chart-section">
+            <h2>Mistake Type Breakdown</h2>
+            <div class="type-dist">
+                {% for t in data.type_distribution %}
+                <div class="type-bar-item">
+                    <span class="type-label">{{ t.mistake_type | title }}</span>
+                    <div class="type-bar-track">
+                        <div class="type-bar-fill"></div>
+                    </div>
+                    <span class="type-count">{{ t.count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="recent-games">
+            <h2>Recent Games</h2>
+            {% for g in data.trend|reverse %}
+            <div class="recent-game-row">
+                <a href="/game/{{ g.game_id }}">Game {{ g.game_id }}</a>
+                <span>vs {{ g.opponent }}</span>
+                <span>{{ g.result }}</span>
+                <span class="blunder-text">{{ g.blunders }}B</span>
+                <span class="mistake-text">{{ g.mistakes }}M</span>
+                <span class="inaccuracy-text">{{ g.inaccuracies }}I</span>
+                <span class="date">{{ g.date }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <script>
+            const trend = {{ data.trend | tojson }};
+
+            // Mistake trend chart
+            const trendCanvas = document.getElementById('trendChart');
+            const tCtx = trendCanvas.getContext('2d');
+            const tW = trendCanvas.width = trendCanvas.parentElement.clientWidth - 40;
+            const tH = trendCanvas.height = 150;
+            const tPad = 40;
+
+            const maxIssues = Math.max(...trend.map(t => t.total_issues), 1);
+            const tScaleX = (tW - 2 * tPad) / Math.max(trend.length - 1, 1);
+            const tScaleY = (tH - 2 * tPad) / maxIssues;
+
+            // Grid
+            tCtx.strokeStyle = '#222';
+            tCtx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = tPad + (tH - 2 * tPad) * i / 4;
+                tCtx.beginPath();
+                tCtx.moveTo(tPad, y);
+                tCtx.lineTo(tW - tPad, y);
+                tCtx.stroke();
+            }
+
+            // Blunders line
+            tCtx.beginPath();
+            tCtx.strokeStyle = '#ff4444';
+            tCtx.lineWidth = 2;
+            trend.forEach((t, i) => {
+                const x = tPad + i * tScaleX;
+                const y = tH - tPad - t.blunders * tScaleY;
+                if (i === 0) tCtx.moveTo(x, y);
+                else tCtx.lineTo(x, y);
+            });
+            tCtx.stroke();
+
+            // Mistakes line
+            tCtx.beginPath();
+            tCtx.strokeStyle = '#ff9944';
+            trend.forEach((t, i) => {
+                const x = tPad + i * tScaleX;
+                const y = tH - tPad - t.mistakes * tScaleY;
+                if (i === 0) tCtx.moveTo(x, y);
+                else tCtx.lineTo(x, y);
+            });
+            tCtx.stroke();
+
+            // Inaccuracies line
+            tCtx.beginPath();
+            tCtx.strokeStyle = '#ffcc44';
+            trend.forEach((t, i) => {
+                const x = tPad + i * tScaleX;
+                const y = tH - tPad - t.inaccuracies * tScaleY;
+                if (i === 0) tCtx.moveTo(x, y);
+                else tCtx.lineTo(x, y);
+            });
+            tCtx.stroke();
+
+            // Labels
+            tCtx.fillStyle = '#999';
+            tCtx.font = '11px monospace';
+            tCtx.fillText('Blunders', tW - tPad - 70, tPad + 14);
+            tCtx.fillStyle = '#ff4444';
+            tCtx.fillRect(tW - tPad - 85, tPad + 6, 10, 10);
+            tCtx.fillStyle = '#999';
+            tCtx.fillText('Mistakes', tW - tPad - 70, tPad + 30);
+            tCtx.fillStyle = '#ff9944';
+            tCtx.fillRect(tW - tPad - 85, tPad + 22, 10, 10);
+
+            // Issues per game bar chart
+            const issuesCanvas = document.getElementById('issuesChart');
+            const iCtx = issuesCanvas.getContext('2d');
+            const iW = issuesCanvas.width = issuesCanvas.parentElement.clientWidth - 40;
+            const iH = issuesCanvas.height = 150;
+            const iPad = 40;
+            const barW = Math.max(4, (iW - 2 * iPad) / trend.length - 2);
+            const iMaxIssues = Math.max(...trend.map(t => t.total_issues), 1);
+            const iScaleY = (iH - 2 * iPad) / iMaxIssues;
+
+            trend.forEach((t, idx) => {
+                const x = iPad + idx * (barW + 2);
+                const h = t.total_issues * iScaleY;
+                const y = iH - iPad - h;
+                iCtx.fillStyle = t.total_issues > 5 ? '#ff4444' : t.total_issues > 2 ? '#ff9944' : '#4a9eff';
+                iCtx.fillRect(x, y, barW, h);
+            });
+
+            iCtx.fillStyle = '#999';
+            iCtx.font = '11px monospace';
+            iCtx.fillText('0', iPad - 10, iH - iPad + 4);
+            iCtx.fillText(String(iMaxIssues), iPad - 20, iPad + 4);
+        </script>
+        {% endif %}
+    </div>
+</body>
+</html>

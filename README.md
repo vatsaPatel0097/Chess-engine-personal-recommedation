@@ -50,12 +50,9 @@ copy .env.example .env
 # Path to Stockfish executable
 STOCKFISH_PATH=C:\stockfish\stockfish-windows-x86-64-avx2.exe
 
-# Optional: OpenAI API key for AI-powered explanations
-# If not set, uses template-based explanations (still good)
-OPENAI_API_KEY=
-
-# Model to use (only if OPENAI_API_KEY is set)
-LLM_MODEL=gpt-4o-mini
+# Ollama model for AI-powered explanations (must be available locally)
+# Run 'ollama list' to see your available models
+OLLAMA_MODEL=gemma4:e2b
 
 # Analysis depth (higher = slower but more accurate)
 ANALYSIS_DEPTH=15
@@ -140,6 +137,6 @@ chess-coach/
 ## Notes
 
 - Analysis depth of 15 takes ~2-5 seconds per move depending on position complexity
-- OpenAI API key is optional - template-based explanations work without it
+- Ollama is optional — if the service isn't running, template-based explanations work without it
 - Games must be in standard PGN format
 - The app analyzes public games only (Lichess/Chess.com public game history)

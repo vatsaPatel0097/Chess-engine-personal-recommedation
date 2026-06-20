@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Coach - Game History</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="nav-brand">&#9822; Chess Coach</a>
+        <div class="nav-links">
+            <a href="/">Analyze</a>
+            <a href="/history" class="active">History</a>
+            <a href="/patterns">Patterns</a>
+            <a href="/dashboard">Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header>
+            <h1>Game History</h1>
+            <p class="subtitle">{{ games | length }} games analyzed</p>
+        </header>
+
+        {% if not games %}
+        <div class="no-errors">
+            <h3>No games yet</h3>
+            <p>Analyze your first game to start tracking patterns.</p>
+            <a href="/" class="btn-primary" style="display:inline-block;margin-top:16px;text-decoration:none;">Analyze a Game</a>
+        </div>
+        {% endif %}
+
+        <div class="game-list">
+            {% for g in games %}
+            <a href="/game/{{ g.id }}" class="game-card">
+                <div class="game-card-header">
+                    <strong>{{ g.white }} vs {{ g.black }}</strong>
+                    <span class="result-badge">{{ g.result }}</span>
+                </div>
+                <div class="game-card-meta">
+                    <span>{{ g.date }}</span>
+                    <span>{{ g.event }}</span>
+                    <span>Played as {{ 'White' if g.player_color == 'w' else 'Black' }}</span>
+                </div>
+                <div class="game-card-stats">
+                    <span class="blunder-text">{{ g.white_blunders + g.black_blunders }} blunders</span>
+                    <span class="mistake-text">{{ g.white_mistakes + g.black_mistakes }} mistakes</span>
+                    <span class="inaccuracy-text">{{ g.white_inaccuracies + g.black_inaccuracies }} inaccuracies</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>

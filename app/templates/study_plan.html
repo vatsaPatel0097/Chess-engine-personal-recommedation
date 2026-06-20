@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Coach - Study Plan</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="nav-brand">&#9822; Chess Coach</a>
+        <div class="nav-links">
+            <a href="/">Analyze</a>
+            <a href="/history">History</a>
+            <a href="/patterns">Patterns</a>
+            <a href="/dashboard">Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header>
+            <h1>Your Study Plan</h1>
+            <p class="subtitle">{{ rating }} &rarr; {{ target }} ({{ plan.gap }} point gap{% if plan.rating_band %}, {{ plan.rating_band }} band{% endif %})</p>
+        </header>
+
+        <div class="general-advice-box">
+            <h2>Overview</h2>
+            <p>{{ plan.general_advice }}</p>
+        </div>
+
+        {% if not plan.focus_areas %}
+        <div class="no-errors">
+            <h3>Need more data</h3>
+            <p>{{ plan.general_advice }}</p>
+        </div>
+        {% else %}
+
+        <div class="focus-areas">
+            <h2>Priority Focus Areas</h2>
+            {% for area in plan.focus_areas %}
+            <div class="focus-card">
+                <div class="focus-header">
+                    <h3>{{ area.area }}</h3>
+                    <span class="focus-pct">{{ area.percentage }}% of your mistakes</span>
+                </div>
+                <p class="focus-details">{{ area.details }}</p>
+                <div class="focus-meta">
+                    <span>Expected gain: <strong>{{ area.expected_gain }}</strong></span>
+                    <span>Related to: <strong>{{ area.problem_type }}</strong> mistakes</span>
+                </div>
+                <div class="resources">
+                    <h4>Resources:</h4>
+                    <ul>
+                        {% for r in area.resources %}
+                        <li>{{ r }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="general-tips">
+            <h2>General Tips for {{ plan.rating_band or 'Your Level' }}</h2>
+            <ul>
+                <li>Play longer time controls (15+10 or 30 min) to give yourself time to think</li>
+                <li>After each game, spend 5 minutes reviewing without an engine first</li>
+                <li>Focus on ONE area at a time, not everything at once</li>
+                <li>Solve tactical puzzles daily (10-15 minutes minimum)</li>
+                <li>Review your mistakes from the last game before playing the next one</li>
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Coach - Game Detail</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="nav-brand">&#9822; Chess Coach</a>
+        <div class="nav-links">
+            <a href="/">Analyze</a>
+            <a href="/history" class="active">History</a>
+            <a href="/patterns">Patterns</a>
+            <a href="/dashboard">Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="result-header">
+            <a href="/history" class="btn-secondary">&larr; Back to History</a>
+            <div class="result-meta">
+                <strong>{{ game.white }} vs {{ game.black }}</strong> &mdash; {{ game.result }}
+                <span class="date">{{ game.date }}</span>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{{ game.total_moves }}</div>
+                <div class="stat-label">Moves</div>
+            </div>
+            <div class="stat-card blunder">
+                <div class="stat-number">{{ game.white_blunders + game.black_blunders }}</div>
+                <div class="stat-label">Blunders</div>
+            </div>
+            <div class="stat-card mistake">
+                <div class="stat-number">{{ game.white_mistakes + game.black_mistakes }}</div>
+                <div class="stat-label">Mistakes</div>
+            </div>
+            <div class="stat-card inaccuracy">
+                <div class="stat-number">{{ game.white_inaccuracies + game.black_inaccuracies }}</div>
+                <div class="stat-label">Inaccuracies</div>
+            </div>
+        </div>
+
+        {% if game.summary %}
+        <div class="summary-box">
+            <h2>Summary</h2>
+            <p>{{ game.summary }}</p>
+        </div>
+        {% endif %}
+
+        <div class="flagged-moves">
+            <h2>Flagged Moves ({{ moves | length }})</h2>
+            {% for m in moves %}
+            <div class="move-card {{ m.severity }}">
+                <div class="move-header">
+                    <span class="move-number">Move {{ m.move_number }} ({{ 'White' if m.color == 'w' else 'Black' }})</span>
+                    <span class="severity-badge {{ m.severity }}">{{ m.severity | upper }}</span>
+                    <span class="type-badge">{{ m.mistake_type }}</span>
+                    <span class="cp-loss">-{{ m.centipawn_loss }}cp</span>
+                </div>
+                <div class="move-details">
+                    <div class="move-played">
+                        <strong>Played:</strong> <code>{{ m.san }}</code>
+                        <span class="eval-indicator">({% if m.eval_before > 0 %}+{% endif %}{{ (m.eval_before / 100) | round(1) }} &rarr; {% if m.eval_after > 0 %}+{% endif %}{{ (m.eval_after / 100) | round(1) }})</span>
+                    </div>
+                    <div class="move-best">
+                        <strong>Better move:</strong> <code>{{ m.best_move_san or 'N/A' }}</code>
+                    </div>
+                </div>
+                {% if m.explanation %}
+                <div class="move-explanation">
+                    <h4>What went wrong:</h4>
+                    <p>{{ m.explanation }}</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <form action="/game/{{ game.id }}/delete" method="post" style="margin-top:20px;text-align:right;" onsubmit="return confirm('Delete this game from history?')">
+            <button type="submit" class="btn-danger">Delete Game</button>
+        </form>
+    </div>
+</body>
+</html>

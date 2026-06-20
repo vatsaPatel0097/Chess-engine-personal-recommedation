@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Coach - Mistake Patterns</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="nav-brand">&#9822; Chess Coach</a>
+        <div class="nav-links">
+            <a href="/">Analyze</a>
+            <a href="/history">History</a>
+            <a href="/patterns" class="active">Patterns</a>
+            <a href="/dashboard">Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header>
+            <h1>Cross-Game Patterns</h1>
+            <p class="subtitle">Recurring mistake analysis across {{ patterns.total_games }} game(s)</p>
+        </header>
+
+        {% if not patterns.top_patterns %}
+        <div class="no-errors">
+            <h3>No patterns yet</h3>
+            <p>Analyze a few games and your recurring weaknesses will show up here.</p>
+        </div>
+        {% else %}
+
+        <div class="pattern-overview">
+            <div class="pattern-stat-card">
+                <div class="stat-number">{{ patterns.total_flagged }}</div>
+                <div class="stat-label">Total Mistakes</div>
+            </div>
+            <div class="pattern-stat-card">
+                <div class="stat-number">{{ patterns.dominant_phase }}</div>
+                <div class="stat-label">Weakest Phase</div>
+            </div>
+        </div>
+
+        <div class="phase-breakdown">
+            <h2>Phase Breakdown</h2>
+            <div class="phase-bars">
+                {% for phase, count in patterns.phase_breakdown.items() %}
+                <div class="phase-bar-item">
+                    <span class="phase-label">{{ phase | title }}</span>
+                    <div class="phase-bar-track">
+                        <div class="phase-bar-fill" style="width: {{ (count / patterns.total_flagged * 100) if patterns.total_flagged > 0 else 0 }}%"></div>
+                    </div>
+                    <span class="phase-count">{{ count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="patterns-list">
+            <h2>Top Mistake Categories</h2>
+            {% for p in patterns.top_patterns %}
+            <div class="pattern-card">
+                <div class="pattern-card-header">
+                    <h3>{{ p.type | title }}</h3>
+                    <span class="pattern-pct">{{ p.percentage }}%</span>
+                </div>
+                <div class="pattern-details">
+                    <span>{{ p.count }} occurrences</span>
+                    <span>Avg move #{{ p.avg_move_number }}</span>
+                    <span>Mostly in {{ p.dominant_phase }}</span>
+                    <span class="severity-badge {{ p.worst_severity }}">{{ p.worst_severity }}</span>
+                </div>
+                <div class="pattern-bar">
+                    <div class="pattern-bar-fill" style="width: {{ p.percentage }}%"></div>
+                </div>
+                <div class="pattern-severity-split">
+                    {% for sev, cnt in p.severity_breakdown.items() %}
+                    {% if cnt > 0 %}
+                    <span class="sev-chip {{ sev }}">{{ cnt }} {{ sev }}</span>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="study-link-box">
+            <a href="/study-plan?rating=1200&target=1400" class="btn-primary" style="display:inline-block;text-decoration:none;">Get Personalized Study Plan &rarr;</a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
