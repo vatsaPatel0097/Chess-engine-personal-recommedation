@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Coach - Personalized Improvement</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>&#9822; Chess Coach</h1>
+            <p class="subtitle">Personalized Improvement for {rating} players</p>
+        </header>
+
+        {% if error %}
+        <div class="error-box">
+            <strong>Error:</strong> {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('paste')">Paste PGN</button>
+            <button class="tab" onclick="showTab('lichess')">Import from Lichess</button>
+            <button class="tab" onclick="showTab('chesscom')">Import from Chess.com</button>
+        </div>
+
+        <!-- Paste PGN Tab -->
+        <div id="tab-paste" class="tab-content active">
+            <form action="/analyze-pgn" method="post">
+                <div class="form-group">
+                    <label for="pgn">Paste your game in PGN format:</label>
+                    <textarea id="pgn" name="pgn" rows="12" placeholder="[Event "Casual Game"]
+[Site "Lichess.org"]
+[Date "2024.01.01"]
+[White "You"]
+[Black "Opponent"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O 1-0"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="player_rating">Your Rating:</label>
+                        <input type="number" id="player_rating" name="player_rating" value="1200" min="100" max="3000">
+                    </div>
+                    <div class="form-group">
+                        <label for="target_rating">Target Rating:</label>
+                        <input type="number" id="target_rating" name="target_rating" value="1400" min="100" max="3000">
+                    </div>
+                    <div class="form-group">
+                        <label for="player_color">You played as:</label>
+                        <select id="player_color" name="player_color">
+                            <option value="w">White</option>
+                            <option value="b">Black</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary">Analyze Game</button>
+            </form>
+        </div>
+
+        <!-- Lichess Tab -->
+        <div id="tab-lichess" class="tab-content">
+            <form action="/import-and-analyze" method="post">
+                <input type="hidden" name="platform" value="lichess">
+                <div class="form-group">
+                    <label for="lichess-username">Lichess Username:</label>
+                    <input type="text" id="lichess-username" name="username" placeholder="e.g. DrNykterstein">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="lichess-rating">Your Rating:</label>
+                        <input type="number" id="lichess-rating" name="player_rating" value="1200" min="100" max="3000">
+                    </div>
+                    <div class="form-group">
+                        <label for="lichess-target">Target Rating:</label>
+                        <input type="number" id="lichess-target" name="target_rating" value="1400" min="100" max="3000">
+                    </div>
+                    <div class="form-group">
+                        <label for="lichess-color">You played as:</label>
+                        <select id="lichess-color" name="player_color">
+                            <option value="w">White</option>
+                            <option value="b">Black</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary">Import & Analyze Latest Game</button>
+            </form>
+        </div>
+
+        <!-- Chess.com Tab -->
+        <div id="tab-chesscom" class="tab-content">
+            <form action="/import-and-analyze" method="post">
+                <input type="hidden" name="platform" value="chesscom">
+                <div class="form-group">
+                    <label for="chesscom-username">Chess.com Username:</label>
+                    <input type="text" id="chesscom-username" name="username" placeholder="e.g. DrNykterstein">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="chesscom-rating">Your Rating:</label>
+                        <input type="number" id="chesscom-rating" name="player_rating" value="1200" min="100" max="3000">
+                    </div>
+                    <div class="form-group">
+                        <label for="chesscom-target">Target Rating:</label>
+                        <input type="number" id="chesscom-target" name="target_rating" value="1400" min="100" max="3000">
+                    </div>
+                    <div class="form-group">
+                        <label for="chesscom-color">You played as:</label>
+                        <select id="chesscom-color" name="player_color">
+                            <option value="w">White</option>
+                            <option value="b">Black</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary">Import & Analyze Latest Game</button>
+            </form>
+        </div>
+
+        <div class="info-box">
+            <h3>How it works</h3>
+            <ul>
+                <li>Paste a PGN or import from Lichess/Chess.com</li>
+                <li>Stockfish analyzes every move for errors</li>
+                <li>Mistakes are classified: Blunder / Mistake / Inaccuracy</li>
+                <li>Each error gets a plain-language explanation written for your rating level</li>
+                <li>Get a summary of what to practice next</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
